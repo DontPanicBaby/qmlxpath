@@ -14,19 +14,10 @@ app = QtGui.QApplication(sys.argv)
 
 
 
-class Someone(QtCore.QObject):
-    def __init__(self):
-        QtCore.QObject.__init__(self)
-        self.my_id = QtCore.QString("I'm first")
-
-    @QtCore.pyqtProperty(QtCore.QString) #(1)
-    def some_id(self):
-        return self.my_id
-        
-so = Someone()
 
 class QMLXPath(QtDeclarative.QDeclarativeView):    
     variants = QtCore.pyqtSignal(list) 
+    results_edit = QtCore.pyqtSignal(str) 
     def __init__(self, parent=None):
         QtDeclarative.QDeclarativeView.__init__(self, parent)
         
@@ -57,6 +48,7 @@ class QMLXPath(QtDeclarative.QDeclarativeView):
         #signals
         self.variants.connect(root.updateVariants) #(2)
         self.variants.emit([])  
+        self.results_edit.connect(root.updateResult)
         
     def loadpage(self, url, method):
         try:
@@ -77,6 +69,12 @@ class QMLXPath(QtDeclarative.QDeclarativeView):
                 tag = el.tag.title().lower()
                 if tag not in variants: variants.append( tag ) 
         self.variants.emit(variants)  
+        try:
+            ob = self.doc.xpath(str(xpath))
+            body = '\n'.join([ str(i) for i in ob ])
+            self.results_edit.emit(body) 
+        except: 
+            pass
         
     def copy2clipboard(self, xpath):
         app.clipboard().setText(xpath)
@@ -85,26 +83,6 @@ class QMLXPath(QtDeclarative.QDeclarativeView):
         self.move(self.x() + x, self.y() +y) 
         
         
-    def signal_func_Qml(self):     
-        print "Qml's signal"
-        root = self.rootObject() #(1)
-        root.loadpage.connect(app.quit) #(2)
-        root.updateMessage(QtCore.QString('From root')) #(3)
-    
-    def signalThis(self):   
-        print "Signal of PyQt"  
-        root = self.rootObject() #(1)
-
-
-    def slot(self):     
-        print "Property"  
-        self.engine().rootContext().setContextObject(self) #(1)
-        self.engine().rootContext().setContextProperty('main', self) #(2)  
-        
-
-    def prop(self):     
-        print "Slot "
-        self.engine().rootContext().setContextProperty('someone', so)
         
 
 Iwbf = QMLXPath()

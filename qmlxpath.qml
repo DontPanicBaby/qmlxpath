@@ -8,10 +8,15 @@ Rectangle {
     signal waitexit
 
     property string method: "get"
+    property variant dropvariants: []
 
     function updateVariants( vlist ){
         variants.model = vlist
+        dropvariants = vlist
         if(vlist.length != 0) variants.visible = true
+    }
+    function updateResult( body ){
+        result_edit.text = body;
     }
 
     width: 600
@@ -70,12 +75,18 @@ Rectangle {
                     text: "//"
                     selectedTextColor: "#8b4444"
                     font.bold: true
-                    smooth: false
+                    smooth: true
                     font.italic: false
                     selectionColor: "#409153"
                     font.family: "Nimbus Mono L"
                     font.pixelSize: 21
                     onTextChanged: xpathchanged(text_xpath.text)
+                    Keys.onTabPressed: {
+                        var split_xpath = text_xpath.text.split('/');
+                        split_xpath[split_xpath.length - 1] = dropvariants[variants.currentIndex];
+                        text_xpath.text =  split_xpath.join("/");
+                        variants.visible = false;
+                    }
                 }
     }
 
@@ -102,7 +113,11 @@ Rectangle {
             id: get_ma
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: { get_choice.color = "#bb403e"; post_choice.color = "#00000000"; method="get";}
+            onClicked: {
+                get_choice.color = "#bb403e";
+                post_choice.color = "#00000000";
+                method="get";
+            }
         }
         Rectangle {
             id: get_choice
@@ -163,6 +178,7 @@ Rectangle {
         width: 554
         height: 130
         radius: 12
+        clip: true
         gradient: Gradient {
             GradientStop {
                 position: 0
@@ -189,8 +205,11 @@ Rectangle {
             y: 5
             width: 530
             height: 118
-            color: "#96000000"
-            text: qsTr("result")
+            color: "#96090808"
+            text: qsTr("")
+            smooth: true
+            clip: true
+            wrapMode: TextEdit.Wrap
             font.bold: true
             font.family: "Nimbus Mono L"
             cursorVisible: true
@@ -255,10 +274,11 @@ Rectangle {
             text: qsTr("http://")
             font.family: "Courier New"
             font.italic: true
-            smooth: false
+            smooth: true
             selectionColor: "#000000"
             font.pixelSize: 21
             onActiveFocusChanged: { if(activeFocus) input_url.text=""}
+            Keys.onReturnPressed: { loadpage(input_url.text, method) }
 
 
         }
@@ -272,7 +292,7 @@ Rectangle {
         width: 33
         height: 33
         source: "clipboard.png"
-        scale:  clipboard_btn_ma.containsMouse ? 1.2 : 1.0
+        scale:  clipboard_btn_ma.containsMouse ? 1.0 : 0.8
         MouseArea {
             id: clipboard_btn_ma
             hoverEnabled: true
@@ -325,37 +345,51 @@ Rectangle {
         font.pixelSize: 27
     }
 
+
+
     ListView {
         id: variants
-        x: 74
-        y: 180
+        x: 73
+        y: 183
         width: 453
         height: 135
         keyNavigationWraps: true
-        highlightRangeMode: ListView.StrictlyEnforceRange
+        highlightFollowsCurrentItem: false
         interactive: false
-        boundsBehavior: Flickable.DragAndOvershootBounds
         contentHeight: 135
         clip: false
         smooth: true
         visible: false
         currentIndex: 0
-        flickableDirection: Flickable.VerticalFlick
         delegate: Item {
-            x: 15
+            property variant variantsData: model
+            x: 0
             height: 20
-            width: parent.width
+            width: 453
             Rectangle{
-                color: "#265569"
-                anchors.fill: parent
-                Text {
-                    text: modelData
-                    font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.fill: parent
+                color: item_ma.containsMouse ? "#ad3e3e" : "#265569"
+                height: parent.height
+                width: parent.width
+                Rectangle{
+                    x: 20
+                    width: 433
+                    height: parent.height
+                    color: item_ma.containsMouse ? "#ad3e3e" : "#265569"
+                    Text {
+                        width: 433
+                        color: "#333232"
+                        text: modelData
+                        font.family: "Marker Felt"
+                        font.pointSize: 15
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.fill: parent
+                    }
                 }
                 MouseArea {
+                    id: item_ma
                     anchors.fill: parent
+                    hoverEnabled: true
                     onClicked: {
                         var split_xpath = text_xpath.text.split('/');
                         split_xpath[split_xpath.length - 1] = modelData;
