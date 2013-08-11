@@ -1,7 +1,7 @@
 import QtQuick 1.1
 
 Rectangle {
-    signal loadpage(string url, string method)
+    signal loadpage(string url, string method, string params)
     signal xpathchanged(string xpath)
     signal copyclipboard(string xpath)
     signal form_move(int x, int y)
@@ -17,6 +17,10 @@ Rectangle {
     }
     function updateResult( body ){
         result_edit.text = body;
+    }
+
+    function alert_msg( msg ){
+        popup.show(msg);
     }
 
     width: 600
@@ -82,10 +86,15 @@ Rectangle {
                     font.pixelSize: 21
                     onTextChanged: xpathchanged(text_xpath.text)
                     Keys.onTabPressed: {
-                        var split_xpath = text_xpath.text.split('/');
-                        split_xpath[split_xpath.length - 1] = dropvariants[variants.currentIndex];
-                        text_xpath.text =  split_xpath.join("/");
+                        var split_simbol = '/';
+                        if (dropvariants[variants.currentIndex].indexOf("@")==0)  split_simbol = '@';
+                        var split_xpath = text_xpath.text.split(split_simbol);
+                        split_xpath[split_xpath.length - 1] = dropvariants[variants.currentIndex].replace('@', '');
+                        text_xpath.text =  split_xpath.join(split_simbol);
                         variants.visible = false;
+                    }
+                    Keys.onDownPressed: {
+                        variants.incrementCurrentIndex();
                     }
                 }
     }
@@ -278,7 +287,7 @@ Rectangle {
             selectionColor: "#000000"
             font.pixelSize: 21
             onActiveFocusChanged: { if(activeFocus) input_url.text=""}
-            Keys.onReturnPressed: { loadpage(input_url.text, method) }
+            Keys.onReturnPressed: { if (method=="post") postparams.show(); else loadpage(input_url.text, method, "") }
 
 
         }
@@ -297,7 +306,7 @@ Rectangle {
             id: clipboard_btn_ma
             hoverEnabled: true
             anchors.fill: parent
-            onClicked: copyclipboard( text_xpath.text )
+            onClicked: {copyclipboard( text_xpath.text ); popup.show("copied") }
         }
     }
 
@@ -329,7 +338,10 @@ Rectangle {
             id: btn_ma
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: loadpage(input_url.text, method)
+            onClicked: {
+                if (method == "post") postparams.show();
+                else loadpage(input_url.text, method, "");
+            }
         }
     }
 
@@ -353,28 +365,37 @@ Rectangle {
         y: 183
         width: 453
         height: 135
-        keyNavigationWraps: true
-        highlightFollowsCurrentItem: false
+        //keyNavigationWraps: true
+        //highlightFollowsCurrentItem: false
+        highlight: highlightBar
+        highlightFollowsCurrentItem: true
         interactive: false
         contentHeight: 135
-        clip: false
+        clip: true
         smooth: true
         visible: false
         currentIndex: 0
+        focus: true
         delegate: Item {
+            id: list_item
             property variant variantsData: model
             x: 0
             height: 20
             width: 453
             Rectangle{
-                color: item_ma.containsMouse ? "#ad3e3e" : "#265569"
+                id: item_re
+                color: variants.isCurrentItem ?  "#ad3e3e" : "#265569"
+                //color: item_ma.containsMouse ? "#ad3e3e" : "#265569"
                 height: parent.height
                 width: parent.width
+                clip: true
                 Rectangle{
                     x: 20
                     width: 433
                     height: parent.height
-                    color: item_ma.containsMouse ? "#ad3e3e" : "#265569"
+                    color: "#00000000"
+                    border.width: 0
+                    border.color: "#000000"
                     Text {
                         width: 433
                         color: "#333232"
@@ -391,9 +412,11 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        var split_xpath = text_xpath.text.split('/');
-                        split_xpath[split_xpath.length - 1] = modelData;
-                        text_xpath.text =  split_xpath.join("/");
+                        var split_simbol = '/';
+                        if (modelData.indexOf("@")==0)  split_simbol = '@';
+                        var split_xpath = text_xpath.text.split(split_simbol);
+                        split_xpath[split_xpath.length - 1] = modelData.replace('@', '');
+                        text_xpath.text =  split_xpath.join(split_simbol);
                         variants.visible = false;
                     }
                 }
@@ -402,6 +425,135 @@ Rectangle {
         }
 
     }
+    Component {
+              id: highlightBar
+              Rectangle {
+                  width: 245; height: 40
+                  radius: 5
+                  color: "lightsteelblue"
+                  y: variants.currentItem.y;
+                  x: variants.currentItem.x-3;
+                  Behavior on y { PropertyAnimation {} }
+              }
+          }
 
+    Rectangle {
+        id: popup
+
+        color: "#bb403e"
+        border.color: "#a2a0a0"; border.width: 2
+        radius: 4
+
+        y: parent.height // off "screen"
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: label.width + 5
+        height: label.height + 5
+
+        opacity: 0
+
+        function show(text) {
+            label.text = text
+            popup.state = "visible"
+            timer.start()
+        }
+        states: State {
+            name: "visible"
+            PropertyChanges { target: popup; opacity: 1 }
+            PropertyChanges { target: popup; y: 150 }
+        }
+
+        transitions: [
+            Transition { from: ""; PropertyAnimation { properties: "opacity,y"; duration: 65 } },
+            Transition { from: "visible"; PropertyAnimation { properties: "opacity,y"; duration: 500 } }
+        ]
+
+        Timer {
+            id: timer
+            interval: 1000
+
+            onTriggered: popup.state = ""
+        }
+
+        Text {
+            id: label
+            anchors.centerIn: parent
+            width: 600  *0.75
+
+            color: "#a2a0a0"
+            font.pixelSize: 20
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            smooth: true
+        }
+    }
+
+    Rectangle {
+        id: postparams
+
+        color: "#265569"
+        border.color: "#ffffff"; border.width: 3
+        radius: 4
+
+        y: parent.height // off "screen"
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: params_label.width + 5
+        height: 70
+
+        opacity: 0
+
+        function show() {
+            postparams.state = "visible"
+            //timer.start()
+        }
+        states: State {
+            name: "visible"
+            PropertyChanges { target: postparams; opacity: 1 }
+            PropertyChanges { target: postparams; y: 100 }
+        }
+
+        transitions: [
+            Transition { from: ""; PropertyAnimation { properties: "opacity,y"; duration: 65 } },
+            Transition { from: "visible"; PropertyAnimation { properties: "opacity,y"; duration: 500 } }
+        ]
+
+        Timer {
+            id: timer2
+            interval: 1000
+
+            onTriggered: popup.state = ""
+        }
+
+        Text {
+            id: params_label
+            x: 15
+            width: 600  *0.75
+            text: "Parameters:"
+            color: "#a2a0a0"
+            font.pixelSize: 20
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignLeft
+            smooth: true
+        }
+        Rectangle{
+            color: "#ffffff"
+            border.color: "#a2a0a0"; border.width: 2
+            radius: 4
+            width: params_label.width - 7
+            height: 20
+            x: 5
+            y: params_label.height + params_label.y +2
+            TextInput{
+                id: post_input
+                width: parent.width - 10
+                height: parent.height
+                x: 7
+                text: "p1=1;p2=2"
+                Keys.onReturnPressed: {
+                    loadpage(input_url.text, method, post_input.text )
+                    postparams.state = ""
+                }
+            }
+        }
+    }
 
 }
